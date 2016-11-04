@@ -137,69 +137,8 @@ html, body {
       width: 100%;
       font-size: 16px; } }
 
-.sidenav-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 999;
-  display: none; }
-
-.sidenav {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 280px;
-  height: 100%;
-  padding: 0;
-  margin: 0;
-  background-color: #ffffff;
-  z-index: 999;
-  overflow: hidden;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
-  transition: 0.3s ease-in-out; }
-  .sidenav:hover {
-    overflow-y: auto; }
-  .sidenav .sidenav-container {
-    width: 280px;
-    padding: 10px 0; }
-  .sidenav header {
-    padding: 0 16px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-    text-align: center; }
-    .sidenav header a, .sidenav header a:hover, .sidenav header a:focus, .sidenav header a:active, .sidenav header a:visited {
-      color: #106CC8;
-      text-decoration: none; }
-    .sidenav header img {
-      max-height: 100px; }
-    .sidenav header h3 {
-      white-space: nowrap; }
-  .sidenav ul {
-    display: block;
-    margin: 0;
-    padding: 3px 0; }
-    .sidenav ul li {
-      display: block; }
-      .sidenav ul li a {
-        display: block;
-        color: rgba(0, 0, 0, 0.6);
-        font-size: 16px;
-        padding: 8px 16px 8px 10px;
-        text-decoration: none;
-        border-left: 6px solid transparent; }
-        .sidenav ul li a:hover, .sidenav ul li a:focus, .sidenav ul li a:active {
-          text-decoration: none;
-          background: rgba(0, 0, 0, 0.1); }
-      .sidenav ul li.active a, .sidenav ul li.active a:hover, .sidenav ul li.active a:focus, .sidenav ul li.active a:active {
-        border-left-color: #106CC8;
-        background: rgba(0, 0, 0, 0.15); }
-
 .main {
   position: relative;
-  margin-left: 280px;
   padding: 0 30px 130px;
   min-height: 100%;
   box-sizing: border-box; }
@@ -244,12 +183,6 @@ html, body {
     left: 0; }
 
 @media (max-width: 767px) {
-  .sidenav-backdrop.open {
-    display: block; }
-  .sidenav {
-    transform: translateX(-100%); }
-    .sidenav.open {
-      transform: translateX(0); }
   .main {
     margin-left: 0;
     padding: 60px 15px 100px; }

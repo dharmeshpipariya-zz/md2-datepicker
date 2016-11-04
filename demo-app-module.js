@@ -37,7 +37,6 @@ var DemoAppModule = (function () {
             declarations: [
                 datepicker_demo_1.DatepickerDemo,
                 demo_app_1.DemoApp,
-                demo_app_1.Home,
             ],
             entryComponents: [
                 demo_app_1.DemoApp,
