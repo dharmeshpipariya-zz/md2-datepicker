@@ -9,7 +9,7 @@
     "moduleResolution": "node",
     "noEmitOnError": true,
     "noImplicitAny": true,
-    "outDir": "../../dist/md2-datepicker",
+    "outDir": "../../dist/md2",
     "rootDir": ".",
     "sourceMap": true,
     "target": "es5",
@@ -26,7 +26,7 @@
     "system-config-spec.ts"
   ],
   "angularCompilerOptions": {
-    "genDir": "../../dist/md2-datepicker",
+    "genDir": "../../dist/md2",
     "skipTemplateCodegen": true,
     "debug": true
   }

@@ -9,7 +9,7 @@
     "moduleResolution": "node",
     "noEmitOnError": true,
     "noImplicitAny": true,
-    "outDir": "../../dist/md2-datepicker",
+    "outDir": "../../dist/md2",
     "rootDir": ".",
     "sourceMap": true,
     "target": "es5",

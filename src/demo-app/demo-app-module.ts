@@ -4,7 +4,7 @@ import {HttpModule} from '@angular/http';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {DemoApp, Home} from './demo-app/demo-app';
 import {RouterModule} from '@angular/router';
-import { MaterialModule} from 'md2-datepicker';
+import {Md2DatepickerModule} from 'md2';
 import {DEMO_APP_ROUTES} from './demo-app/routes';
 import {DatepickerDemo} from './datepicker/datepicker-demo';
 
@@ -15,7 +15,7 @@ import {DatepickerDemo} from './datepicker/datepicker-demo';
     HttpModule,
     ReactiveFormsModule,
     RouterModule.forRoot(DEMO_APP_ROUTES),
-    MaterialModule.forRoot(),
+    Md2DatepickerModule.forRoot(),
   ],
   declarations: [
     DatepickerDemo,

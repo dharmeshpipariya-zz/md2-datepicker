@@ -31,9 +31,9 @@ System.config({
   packages: {
     // Thirdparty barrels.
     'rxjs': { main: 'index' },
-    'md2-datepicker': {
+    'md2': {
       format: 'cjs',
-      main: 'md2-datepicker.umd.js'
+      main: 'md2.umd.js'
     },
     // Set the default extension for the root package, because otherwise the demo-app can't
     // be built within the production mode. Due to missing file extensions.

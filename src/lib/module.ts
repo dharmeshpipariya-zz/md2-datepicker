@@ -12,7 +12,7 @@ import {
 import { MdDatepickerModule } from './datepicker/index';
 
 
-const MATERIAL_MODULES = [
+const MD2_MODULES = [
   MdDatepickerModule,
   MdRippleModule,
   OverlayModule,
@@ -34,17 +34,17 @@ const MATERIAL_MODULES = [
     OverlayModule.forRoot(),
     StyleCompatibilityModule.forRoot(),
   ],
-  exports: MATERIAL_MODULES,
+  exports: MD2_MODULES,
 })
-export class MaterialRootModule { }
+export class Md2DatepickerRootModule { }
 
 
 @NgModule({
-  imports: MATERIAL_MODULES,
-  exports: MATERIAL_MODULES,
+  imports: MD2_MODULES,
+  exports: MD2_MODULES,
 })
-export class MaterialModule {
+export class Md2DatepickerModule {
   static forRoot(): ModuleWithProviders {
-    return { ngModule: MaterialRootModule };
+    return { ngModule: Md2DatepickerRootModule };
   }
 }

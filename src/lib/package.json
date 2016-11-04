@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Angular2 based Material Design Datepicker component.",
   "author": "Dharmesh Pipariya <pipariyadharmesh@gmail.com>",
-  "main": "./md2-datepicker.umd.js",
+  "main": "./md2.umd.js",
   "module": "./index.js",
   "typings": "./index.d.ts",
   "homepage": "https://github.com/dharmeshpipariya/md2-datepicker",

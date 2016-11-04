@@ -18,8 +18,8 @@
       "../../node_modules/@types"
     ],
     "paths": {
-      "md2-datepicker": [
-        "../../dist/md2-datepicker"
+      "md2": [
+        "../../dist/md2"
       ]
     }
   },
