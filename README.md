@@ -1,7 +1,8 @@
-# md2-datepicker
+# MD2-DATEPICKER
 
-Angular2 based Material Design Datepicker component.
+Angular2 based Material Design datepicker component.
 
+[![Build Status](https://travis-ci.org/dharmeshpipariya/md2-datepicker.svg?branch=master)](https://travis-ci.org/dharmeshpipariya/md2-datepicker)
 
 ## Quick start
 
@@ -9,23 +10,37 @@ Angular2 based Material Design Datepicker component.
 
   `npm install md2-datepicker --save`
 
-2. Set `md2-datepicker` in your project
-system.config.js
-```js
+2. Setup `MD2-DATEPICKER` in your project
+```ts
+// system.config.js
+// ================
 {
   map: {
     'md2-datepicker': 'node_modules/md2-datepicker'
   },
   packages: {
-    'md2-datepicker/datepicker': {
-      format: 'cjs',
-      defaultExtension: 'js',
-      main: 'datepicker.js'
+    'md2-datepicker': {
+	  format: 'cjs',
+      main: 'md2-datepicker.umd.js'
     }
   }
 }
+
+
+// app.module.ts
+// =============
+
+import { Md2Module }  from 'md2-datepicker';
+@NgModule({
+  imports: [
+    ...,
+    Md2Module.forRoot(),
+  ],
+  ...
+})
+export class AppModule { }
+
 ```
 
 3. More information regarding of using ***md2-datepicker*** is located in
-  [demo(coming soon)](#) and [demo sources](https://github.com/DharmeshPipariya/md2-datepicker/tree/master/src).
-
+  [demo](http://dharmeshpipariya.github.io/md2-datepicker) and [demo sources](https://github.com/dharmeshpipariya/md2-datepicker/tree/master/src/demo-app).

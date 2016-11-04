@@ -1,0 +1,10 @@
+// Import all the theming functionality.
+@import '../core';
+@import '../../datepicker/datepicker-theme';
+
+
+// Create a theme.
+@mixin angular-material-theme($theme) {
+  @include md-core-theme($theme);
+  @include md-datepicker-theme($theme);
+}
