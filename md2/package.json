@@ -1,0 +1,27 @@
+{
+  "name": "md2-datepicker",
+  "version": "0.0.1-alpha.1",
+  "description": "Angular2 based Material Design Datepicker component.",
+  "author": "Dharmesh Pipariya <pipariyadharmesh@gmail.com>",
+  "main": "./md2datepicker.umd.js",
+  "module": "./index.js",
+  "typings": "./index.d.ts",
+  "homepage": "https://github.com/dharmeshpipariya/md2-datepicker",
+  "bugs": "https://github.com/dharmeshpipariya/md2-datepicker/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dharmeshpipariya/md2-datepicker.git"
+  },
+  "keywords": [
+    "angular",
+    "material",
+    "material design",
+    "components"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@angular/core": "^2.0.0",
+    "@angular/common": "^2.0.0",
+    "@angular/http": "^2.0.0"
+  }
+}
