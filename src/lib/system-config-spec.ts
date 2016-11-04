@@ -33,7 +33,7 @@ System.config({
     'rxjs': { main: 'index' },
     'md2': {
       format: 'cjs',
-      main: 'md2.umd.js'
+      main: 'md2datepicker.umd.js'
     },
     // Set the default extension for the root package, because otherwise the demo-app can't
     // be built within the production mode. Due to missing file extensions.

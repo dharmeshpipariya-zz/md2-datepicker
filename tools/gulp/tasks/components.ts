@@ -93,18 +93,18 @@ task(':build:components:rollup', [':build:components:inline'], () => {
       format: 'umd',
       globals,
       sourceMap: true,
-      dest: path.join(DIST_COMPONENTS_ROOT, 'md2.umd.js')
+      dest: path.join(DIST_COMPONENTS_ROOT, 'md2datepicker.umd.js')
     });
 
     // Add source map URL to the code.
-    result.code += '\n\n//# sourceMappingURL=./md2.umd.js.map\n';
+    result.code += '\n\n//# sourceMappingURL=./md2datepicker.umd.js.map\n';
     // Format mapping to show properly in the browser. Rollup by default will put the path
     // as relative to the file, and since that path is in src/lib and the file is in
     // dist/md2-datepicker, we need to kill a few `../`.
     result.map.sources = result.map.sources.map((s: string) => s.replace(/^(\.\.\/)+/, ''));
 
-    writeFileSync(path.join(DIST_COMPONENTS_ROOT, 'md2.umd.js'), result.code, 'utf8');
-    writeFileSync(path.join(DIST_COMPONENTS_ROOT, 'md2.umd.js.map'), result.map, 'utf8');
+    writeFileSync(path.join(DIST_COMPONENTS_ROOT, 'md2datepicker.umd.js'), result.code, 'utf8');
+    writeFileSync(path.join(DIST_COMPONENTS_ROOT, 'md2datepicker.umd.js.map'), result.map, 'utf8');
   });
 });
 

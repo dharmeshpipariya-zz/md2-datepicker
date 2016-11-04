@@ -21,7 +21,7 @@ Angular2 based Material Design datepicker component.
   packages: {
     'md2-datepicker': {
 	  format: 'cjs',
-      main: 'md2-datepicker.umd.js'
+      main: 'md2datepicker.umd.js'
     }
   }
 }
