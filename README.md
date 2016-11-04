@@ -30,11 +30,11 @@ Angular2 based Material Design datepicker component.
 // app.module.ts
 // =============
 
-import { Md2Module }  from 'md2-datepicker';
+import { Md2DatepickerModule }  from 'md2-datepicker';
 @NgModule({
   imports: [
     ...,
-    Md2Module.forRoot(),
+    Md2DatepickerModule.forRoot(),
   ],
   ...
 })
