@@ -61,7 +61,7 @@ export const transformPanel: AnimationEntryMetadata = trigger('transformPanel', 
     animate(`150ms cubic-bezier(0.25, 0.8, 0.25, 1)`)
   ]),
   transition('* => void', [
-    animate('250ms 100ms linear', style({opacity: 0}))
+    animate('250ms 100ms linear', style({ opacity: 0 }))
   ])
 ]);
 
@@ -70,10 +70,10 @@ export const transformPanel: AnimationEntryMetadata = trigger('transformPanel', 
  * select's options. It is time delayed to occur 100ms after the overlay
  * panel has transformed in.
  */
-export const fadeInContent: AnimationEntryMetadata  =  trigger('fadeInContent', [
-  state('showing', style({opacity: 1})),
+export const fadeInContent: AnimationEntryMetadata = trigger('fadeInContent', [
+  state('showing', style({ opacity: 1 })),
   transition('void => showing', [
-    style({opacity: 0}),
+    style({ opacity: 0 }),
     animate(`150ms 100ms cubic-bezier(0.55, 0, 0.55, 0.2)`)
   ])
 ]);

@@ -1,19 +1,32 @@
 import { Component } from '@angular/core';
+import { FormControl } from '@angular/forms';
 
 @Component({
   moduleId: module.id,
   selector: 'datepicker-demo',
   templateUrl: 'datepicker-demo.html',
+  styleUrls: ['datepicker-demo.css'],
 })
 export class DatepickerDemo {
-  private disabled: boolean = true;
-  private datetime: any = '';
-  private datetime1: any = '2016-09-15 12:10';
-  private date: any = '2016-09-15';
-  private time: any = '12:10';
-  private minDate: any = '2016-07-15';
-  private maxDate: any = '2016-12-15';
-  private change(value: any) {
-    console.log('Changed data: ', value);
+  isRequired = false;
+  isDisabled = false;
+  currentDrink: string;
+  foodControl = new FormControl('');
+
+  foods = [
+    { value: 'steak-0', viewValue: 'Steak' },
+    { value: 'pizza-1', viewValue: 'Pizza' },
+    { value: 'tacos-2', viewValue: 'Tacos' }
+  ];
+
+  drinks = [
+    { value: 'coke-0', viewValue: 'Coke' },
+    { value: 'sprite-1', viewValue: 'Sprite', disabled: true },
+    { value: 'water-2', viewValue: 'Water' }
+  ];
+
+  toggleDisabled() {
+    this.foodControl.enabled ? this.foodControl.disable() : this.foodControl.enable();
   }
+
 }

@@ -1,60 +1,28 @@
-<div class="demo-datepicker">
-  <h1>Datepicker Demo</h1>
-  <hr />
-  <h4>Date Time Picker</h4>
-  <div>
-    <md2-datepicker [(ngModel)]="datetime"
-                    type="datetime"
-                    placeholder="Date Time"
-                    format="DD/MM/YYYY HH:mm"
-                    required
-                    (change)="change($event)">
+<div class="demo-select">
+  <md-card>
+    <md2-datepicker placeholder="Food" [formControl]="foodControl">
+      <md-calendar *ngFor="let food of foods" [value]="food.value"> {{ food.viewValue }} </md-calendar>
     </md2-datepicker>
-
-    <md2-datepicker [(ngModel)]="datetime1"
-                    type="datetime"
-                    placeholder="Date Time"
-                    format="DD/MM/YYYY HH:mm"
-                    (change)="change($event)">
+    <p> Value: {{ foodControl.value }} </p>
+    <p> Touched: {{ foodControl.touched }} </p>
+    <p> Dirty: {{ foodControl.dirty }} </p>
+    <p> Status: {{ foodControl.status }} </p>
+    <button md-button (click)="foodControl.setValue('pizza-1')">SET VALUE</button>
+    <button md-button (click)="toggleDisabled()">TOGGLE DISABLED</button>
+  </md-card>
+  <md-card>
+    <md2-datepicker placeholder="Drink" [(ngModel)]="currentDrink" [required]="isRequired" [disabled]="isDisabled"
+               #drinkControl="ngModel">
+      <md-calendar *ngFor="let drink of drinks" [value]="drink.value" [disabled]="drink.disabled">
+        {{ drink.viewValue }}
+      </md-calendar>
     </md2-datepicker>
-  </div>
-  <h4>Date Picker</h4>
-  <div>
-    <md2-datepicker [(ngModel)]="date"
-                    type="date"
-                    placeholder="Date"
-                    format="DD/MM/YYYY"
-                    (change)="change($event)">
-    </md2-datepicker>
-  </div>
-  <h4>Time Picker</h4>
-  <div>
-    <md2-datepicker [(ngModel)]="time"
-                    type="time"
-                    placeholder="Time"
-                    format="HH:mm"
-                    (change)="change($event)">
-    </md2-datepicker>
-
-  </div>  <h4>Disabled</h4>
-  <div>
-    <md2-datepicker [(ngModel)]="date"
-                    type="date"
-                    [disabled]="disabled"
-                    placeholder="Date"
-                    format="DD/MM/YYYY"
-                    (change)="change($event)">
-    </md2-datepicker>
-  </div>
-  <h4>Min/Max Date</h4>
-  <div>
-    <md2-datepicker [(ngModel)]="date"
-                    type="date"
-                    [min]="minDate"
-                    [max]="maxDate"
-                    placeholder="Date Time"
-                    format="DD/MM/YYYY"
-                    (change)="change($event)">
-    </md2-datepicker>
-  </div>
+    <p> Value: {{ currentDrink }} </p>
+    <p> Touched: {{ drinkControl.touched }} </p>
+    <p> Dirty: {{ drinkControl.dirty }} </p>
+    <p> Status: {{ drinkControl.control?.status }} </p>
+    <button md-button (click)="currentDrink='sprite-1'">SET VALUE</button>
+    <button md-button (click)="isRequired=!isRequired">TOGGLE REQUIRED</button>
+    <button md-button (click)="isDisabled=!isDisabled">TOGGLE DISABLED</button>
+  </md-card>
 </div>

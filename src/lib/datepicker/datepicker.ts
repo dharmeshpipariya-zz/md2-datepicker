@@ -1,860 +1,333 @@
 import {
   AfterContentInit,
   Component,
+  ContentChildren,
   ElementRef,
-  HostListener,
-  Input,
-  Output,
   EventEmitter,
-  forwardRef,
+  Input,
+  OnDestroy,
+  Optional,
+  Output,
+  QueryList,
+  Renderer,
   ViewEncapsulation,
-  NgModule,
-  ModuleWithProviders
+  ViewChild
 } from '@angular/core';
-import {
-  NG_VALUE_ACCESSOR,
-  ControlValueAccessor,
-  FormsModule
-} from '@angular/forms';
-import { CommonModule } from '@angular/common';
-import { Md2DateUtil } from './dateUtil';
-
-import {
-  coerceBooleanProperty,
-  ENTER,
-  SPACE,
-  TAB,
-  UP_ARROW,
-  DOWN_ARROW,
-  LEFT_ARROW,
-  RIGHT_ARROW
-} from '../core/core';
-
-export interface IDay {
-  year: number;
-  month: string;
-  date: string;
-  day: string;
-  hour: string;
-  minute: string;
-}
-
-export interface IDate {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute: number;
-}
-
-export interface IWeek {
-  dateObj: IDate;
-  date: Date;
-  calMonth: number;
-  today: boolean;
-  disabled: boolean;
-}
-
-const noop = () => { };
-
-let nextId = 0;
-
-export const MD_DATEPICKER_CONTROL_VALUE_ACCESSOR: any = {
-  provide: NG_VALUE_ACCESSOR,
-  useExisting: forwardRef(() => MdDatepicker),
-  multi: true
-};
+import { MdCalendar } from './calendar';
+import { ENTER, SPACE } from '../core/keyboard/keycodes';
+import { ListKeyManager } from '../core/a11y/list-key-manager';
+import { Dir } from '../core/rtl/dir';
+import { Subscription } from 'rxjs/Subscription';
+import { transformPlaceholder, transformPanel, fadeInContent } from './datepicker-animations';
+import { ControlValueAccessor, NgControl } from '@angular/forms';
+import { coerceBooleanProperty } from '../core/coersion/boolean-property';
 
 @Component({
   moduleId: module.id,
   selector: 'md2-datepicker',
   templateUrl: 'datepicker.html',
   styleUrls: ['datepicker.css'],
-  providers: [MD_DATEPICKER_CONTROL_VALUE_ACCESSOR],
+  encapsulation: ViewEncapsulation.None,
   host: {
-    'role': 'datepicker',
-    '[id]': 'id',
-    '[class]': 'class',
+    'role': 'listbox',
+    '[attr.tabindex]': '_getTabIndex()',
+    '[attr.aria-label]': 'placeholder',
+    '[attr.aria-required]': 'required.toString()',
+    '[attr.aria-disabled]': 'disabled.toString()',
     '[class.md-datepicker-disabled]': 'disabled',
-    '[tabindex]': 'disabled ? -1 : tabindex',
-    '[attr.aria-disabled]': 'disabled'
+    '[attr.aria-invalid]': '_control?.invalid || "false"',
+    '(keydown)': '_handleKeydown($event)',
+    '(blur)': '_onBlur()'
   },
-  encapsulation: ViewEncapsulation.None
+  animations: [
+    transformPlaceholder,
+    transformPanel,
+    fadeInContent
+  ],
+  exportAs: 'mdDatepicker',
 })
-export class MdDatepicker implements AfterContentInit, ControlValueAccessor {
+export class MdDatepicker implements AfterContentInit, ControlValueAccessor, OnDestroy {
+  /** Whether or not the overlay panel is open. */
+  private _panelOpen = false;
 
-  constructor(private dateUtil: Md2DateUtil, private element: ElementRef) {
-    this.getYears();
-    this.generateClock();
-    //this.mouseMoveListener = (event: MouseEvent) => { this.onMouseMoveClock(event); };
-    //this.mouseUpListener = (event: MouseEvent) => { this.onMouseUpClock(event); };
+  /** The currently selected option. */
+  private _selected: MdCalendar;
+
+  /** Subscriptions to option events. */
+  private _subscriptions: Subscription[] = [];
+
+  /** Subscription to changes in the option list. */
+  private _changeSubscription: Subscription;
+
+  /** Subscription to tab events while overlay is focused. */
+  private _tabSubscription: Subscription;
+
+  /** Whether filling out the select is required in the form.  */
+  private _required: boolean = false;
+
+  /** Whether the select is disabled.  */
+  private _disabled: boolean = false;
+
+  /** Manages keyboard events for options in the panel. */
+  _keyManager: ListKeyManager;
+
+  /** View -> model callback called when value changes */
+  _onChange: (value: any) => void;
+
+  /** View -> model callback called when select has been touched */
+  _onTouched: Function;
+
+  /** This position config ensures that the top left corner of the overlay
+   * is aligned with with the top left of the origin (overlapping the trigger
+   * completely). In RTL mode, the top right corners are aligned instead.
+   */
+  _positions = [{
+    originX: 'start',
+    originY: 'top',
+    overlayX: 'start',
+    overlayY: 'top'
+  }];
+
+  @ViewChild('trigger') trigger: ElementRef;
+  @ContentChildren(MdCalendar) options: QueryList<MdCalendar>;
+
+  @Input() placeholder: string;
+
+  @Input()
+  get disabled() {
+    return this._disabled;
+  }
+
+  set disabled(value: any) {
+    this._disabled = coerceBooleanProperty(value);
+  }
+
+  @Input()
+  get required() {
+    return this._required;
+  }
+
+  set required(value: any) {
+    this._required = coerceBooleanProperty(value);
+  }
+
+  @Output() onOpen = new EventEmitter();
+  @Output() onClose = new EventEmitter();
+
+  constructor(private _element: ElementRef, private _renderer: Renderer,
+    @Optional() private _dir: Dir, @Optional() public _control: NgControl) {
+    this._control.valueAccessor = this;
   }
 
   ngAfterContentInit() {
-    this._isInitialized = true;
-    this.isCalendarVisible = this.type !== 'time' ? true : false;
+    this._initKeyManager();
+    this._listenToOptions();
+
+    this._changeSubscription = this.options.changes.subscribe(() => {
+      this._dropSubscriptions();
+      this._listenToOptions();
+    });
   }
 
-  //private mouseMoveListener: any;
-  //private mouseUpListener: any;
-
-  private _value: Date = null;
-  private _readonly: boolean;
-  private _required: boolean;
-  private _disabled: boolean = false;
-  private _isInitialized: boolean = false;
-  private _onTouchedCallback: () => void = noop;
-  private _onChangeCallback: (_: any) => void = noop;
-
-  private isDatepickerVisible: boolean;
-  private isYearsVisible: boolean;
-  private isCalendarVisible: boolean;
-  private isHoursVisible: boolean = true;
-
-  private months: Array<string> = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  private days: Array<string> = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  private hours: Array<Object> = [];
-  private minutes: Array<Object> = [];
-
-  private prevMonth: number = 1;
-  private currMonth: number = 2;
-  private nextMonth: number = 3;
-
-  private years: Array<number> = [];
-  private dates: Array<Object> = [];
-  private today: Date = new Date();
-  private _displayDate: Date = null;
-  private selectedDate: Date = null;
-  private displayDay: IDay = { year: 0, month: '', date: '', day: '', hour: '', minute: '' };
-  private displayInputDate: string = '';
-
-  private clock: any = {
-    dialRadius: 120,
-    outerRadius: 99,
-    innerRadius: 66,
-    tickRadius: 17,
-    hand: { x: 0, y: 0 },
-    x: 0, y: 0,
-    dx: 0, dy: 0,
-    moved: false
-  };
-
-  private _minDate: Date = null;
-  private _maxDate: Date = null;
-
-  @Output() change: EventEmitter<any> = new EventEmitter<any>();
-
-  @Input() type: 'date' | 'time' | 'datetime' = 'date';
-  @Input() name: string = '';
-  @Input() id: string = 'md-datepicker-' + (++nextId);
-  @Input() class: string;
-  @Input() placeholder: string;
-  @Input() format: string = this.type === 'date' ? 'DD/MM/YYYY' : this.type === 'time' ? 'HH:mm' : this.type === 'datetime' ? 'DD/MM/YYYY HH:mm' : 'DD/MM/YYYY';
-  @Input() tabindex: number = 0;
-
-  @Input()
-  get readonly(): boolean { return this._readonly; }
-  set readonly(value) { this._readonly = coerceBooleanProperty(value); }
-
-  @Input()
-  get required(): boolean { return this._required; }
-  set required(value) { this._required = coerceBooleanProperty(value); }
-
-  @Input()
-  get disabled(): boolean { return this._disabled; }
-  set disabled(value) { this._disabled = coerceBooleanProperty(value); }
-
-  @Input() set min(value: string) {
-    this._minDate = new Date(value);
-    this._minDate.setHours(0, 0, 0, 0);
-    this.getYears();
-  }
-  @Input() set max(value: string) {
-    this._maxDate = new Date(value);
-    this._maxDate.setHours(0, 0, 0, 0);
-    this.getYears();
+  ngOnDestroy() {
+    this._dropSubscriptions();
+    this._changeSubscription.unsubscribe();
+    this._tabSubscription.unsubscribe();
   }
 
-  @Input()
-  get value(): any { return this._value; }
-  set value(value: any) {
-    if (value && value !== this._value) {
-      if (this.dateUtil.isValidDate(value)) {
-        this._value = value;
-      } else {
-        if (this.type === 'time') {
-          this._value = new Date('1-1-1 ' + value);
-        }
-        else {
-          this._value = new Date(value);
-        }
-      }
-      this.displayInputDate = this._formatDate(this._value);
-      let date = '';
-      if (this.type !== 'time') {
-        date += this._value.getFullYear() + '-' + (this._value.getMonth() + 1) + '-' + this._value.getDate();
-      }
-      if (this.type === 'datetime') {
-        date += ' ';
-      }
-      if (this.type !== 'date') {
-        date += this._value.getHours() + ':' + this._value.getMinutes();
-      }
-      if (this._isInitialized) {
-        this._onChangeCallback(date);
-        this.change.emit(date);
-      }
-    }
+  /** Toggles the overlay panel open or closed. */
+  toggle(): void {
+    this.panelOpen ? this.close() : this.open();
   }
 
-  get displayDate(): Date {
-    if (this._displayDate && this.dateUtil.isValidDate(this._displayDate)) {
-      return this._displayDate;
-    } else {
-      return this.today;
-    }
-  }
-  set displayDate(date: Date) {
-    if (date && this.dateUtil.isValidDate(date)) {
-      if (this._minDate && this._minDate > date) {
-        date = this._minDate;
-      }
-      if (this._maxDate && this._maxDate < date) {
-        date = this._maxDate;
-      }
-      this._displayDate = date;
-      this.displayDay = {
-        year: date.getFullYear(),
-        month: this.months[date.getMonth()],
-        date: this._prependZero(date.getDate() + ''),
-        day: this.days[date.getDay()],
-        hour: this._prependZero(date.getHours() + ''),
-        minute: this._prependZero(date.getMinutes() + '')
-      };
-    }
-  }
-
-  @HostListener('click', ['$event'])
-  private onClick(event: MouseEvent) {
+  /** Opens the overlay panel. */
+  open(): void {
     if (this.disabled) {
-      event.stopPropagation();
-      event.preventDefault();
       return;
     }
+    this._panelOpen = true;
   }
 
-  @HostListener('keydown', ['$event'])
-  private onKeyDown(event: KeyboardEvent) {
-    if (this.disabled) { return; }
-
-    if (this.isDatepickerVisible) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      //switch (event.keyCode) {
-      //  case TAB:
-      //  case ESCAPE: this.onBlur(); break;
-      //}
-      let displayDate = this.displayDate;
-      if (this.isYearsVisible) {
-        switch (event.keyCode) {
-          case ENTER:
-          case SPACE: this.onClickOk(); break;
-
-          case DOWN_ARROW:
-            if (this.displayDate.getFullYear() === (this.today.getFullYear() + 100)) break;
-            this.displayDate = this.dateUtil.incrementYears(displayDate, 1);
-            this._scrollToSelectedYear();
-            break;
-          case UP_ARROW:
-            if (this.displayDate.getFullYear() === 1900) break;
-            this.displayDate = this.dateUtil.incrementYears(displayDate, -1);
-            this._scrollToSelectedYear();
-            break;
-        }
-
-      } else if (this.isCalendarVisible) {
-        switch (event.keyCode) {
-          case ENTER:
-          case SPACE: this.setDate(this.displayDate); break;
-
-          case RIGHT_ARROW: this.displayDate = this.dateUtil.incrementDays(displayDate, 1); break;
-          case LEFT_ARROW: this.displayDate = this.dateUtil.incrementDays(displayDate, -1); break;
-
-          //case PAGE_DOWN: this.displayDate = this.dateUtil.incrementMonths(displayDate, 1); break;
-          //case PAGE_UP: this.displayDate = this.dateUtil.incrementMonths(displayDate, -1); break;
-
-          case DOWN_ARROW: this.displayDate = this.dateUtil.incrementDays(displayDate, 7); break;
-          case UP_ARROW: this.displayDate = this.dateUtil.incrementDays(displayDate, -7); break;
-
-          //case HOME: this.displayDate = this.dateUtil.getFirstDateOfMonth(displayDate); break;
-          //case END: this.displayDate = this.dateUtil.getLastDateOfMonth(displayDate); break;
-        }
-        if (!this.dateUtil.isSameMonthAndYear(displayDate, this.displayDate)) {
-          this.generateCalendar();
-        }
-      } else if (this.isHoursVisible) {
-        switch (event.keyCode) {
-          case ENTER:
-          case SPACE: this.setHour(this.displayDate.getHours()); break;
-
-          case UP_ARROW: this.displayDate = this.dateUtil.incrementHours(displayDate, 1); this._resetClock(); break;
-          case DOWN_ARROW: this.displayDate = this.dateUtil.incrementHours(displayDate, -1); this._resetClock(); break;
-        }
-      } else {
-        switch (event.keyCode) {
-          case ENTER:
-          case SPACE: this.setMinute(this.displayDate.getMinutes()); break;
-
-          case UP_ARROW: this.displayDate = this.dateUtil.incrementMinutes(displayDate, 1); this._resetClock(); break;
-          case DOWN_ARROW: this.displayDate = this.dateUtil.incrementMinutes(displayDate, -1); this._resetClock(); break;
-        }
-      }
-    } else {
-      switch (event.keyCode) {
-        case ENTER:
-        case SPACE:
-          event.preventDefault();
-          event.stopPropagation();
-          this.showDatepicker();
-          break;
-      }
-    }
-  }
-
-  @HostListener('blur')
-  private onBlur() {
-    this.isDatepickerVisible = false;
-    this.isYearsVisible = false;
-    this.isCalendarVisible = this.type !== 'time' ? true : false;
-    this.isHoursVisible = true;
-  }
-  /**
-   * Display Years
-   */
-  private showYear() {
-    this.isYearsVisible = true;
-    this.isCalendarVisible = true;
-    this._scrollToSelectedYear();
-  }
-
-  private getYears() {
-    let startYear = this._minDate ? this._minDate.getFullYear() : 1900,
-      endYear = this._maxDate ? this._maxDate.getFullYear() : this.today.getFullYear() + 100;
-    this.years = [];
-    for (let i = startYear; i <= endYear; i++) {
-      this.years.push(i);
-    }
-  }
-
-  private _scrollToSelectedYear() {
-    setTimeout(() => {
-      let yearContainer = this.element.nativeElement.querySelector('.md-years'),
-        selectedYear = this.element.nativeElement.querySelector('.md-year.selected');
-      yearContainer.scrollTop = (selectedYear.offsetTop + 20) - yearContainer.clientHeight / 2;
-    }, 0);
+  /** Closes the overlay panel and focuses the host element. */
+  close(): void {
+    this._panelOpen = false;
+    this._focusHost();
   }
 
   /**
-   * select year
-   * @param year
+   * Sets the select's value. Part of the ControlValueAccessor interface
+   * required to integrate with Angular's core forms API.
    */
-  private setYear(year: number) {
-    let date = this.displayDate;
-    this.displayDate = new Date(year, date.getMonth(), date.getDate(), date.getHours(), date.getMinutes());
-    this.generateCalendar();
-    this.isYearsVisible = false;
-    //this.isCalendarVisible = true;
-  }
-
-  /**
-   * Display Datepicker
-   */
-  private showDatepicker() {
-    if (this.disabled || this.readonly) { return; }
-    this.isDatepickerVisible = true;
-    this.selectedDate = this.value || new Date(1, 0, 1);
-    this.displayDate = this.value || this.today;
-    this.generateCalendar();
-    this._resetClock();
-    this.element.nativeElement.focus();
-  }
-
-  /**
-   * Display Calendar
-   */
-  private showCalendar() {
-    this.isYearsVisible = false;
-    this.isCalendarVisible = true;
-  }
-
-  /**
-   * Toggle Hour visiblity
-   */
-  private toggleHours(value: boolean) {
-    this.isYearsVisible = false;
-    this.isCalendarVisible = false;
-    this.isYearsVisible = false;
-    this.isHoursVisible = value;
-    this._resetClock();
-  }
-
-  /**
-   * Ok Button Event
-   */
-  private onClickOk() {
-    if (this.isYearsVisible) {
-      this.generateCalendar();
-      this.isYearsVisible = false;
-      this.isCalendarVisible = true;
-    } else if (this.isCalendarVisible) {
-      this.setDate(this.displayDate);
-    } else if (this.isHoursVisible) {
-      this.isHoursVisible = false;
-      this._resetClock();
-    } else {
-      this.value = this.displayDate;
-      this.onBlur();
-    }
-  }
-
-  /**
-   * Date Selection Event
-   * @param event Event Object
-   * @param date Date Object
-   */
-  private onClickDate(event: Event, date: any) {
-    event.preventDefault();
-    event.stopPropagation();
-    if (date.disabled) { return; }
-    if (date.calMonth === this.prevMonth) {
-      this.updateMonth(-1);
-    }
-    else if (date.calMonth === this.currMonth) {
-      this.setDate(new Date(date.dateObj.year, date.dateObj.month, date.dateObj.day, this.displayDate.getHours(), this.displayDate.getMinutes()));
-    }
-    else if (date.calMonth === this.nextMonth) {
-      this.updateMonth(1);
-    }
-  }
-
-  /**
-   * Set Date
-   * @param date Date Object
-   */
-  private setDate(date: Date) {
-    if (this.type === 'date') {
-      this.value = date;
-      this.onBlur();
-    } else {
-      this.selectedDate = date;
-      this.displayDate = date;
-      this.isCalendarVisible = false;
-      this.isHoursVisible = true;
-      this._resetClock();
-    }
-  }
-
-  /**
-   * Update Month
-   * @param noOfMonths increment number of months
-   */
-  private updateMonth(noOfMonths: number) {
-    this.displayDate = this.dateUtil.incrementMonths(this.displayDate, noOfMonths);
-    this.generateCalendar();
-  }
-
-  /**
-   * Check is Before month enabled or not
-   * @return boolean
-   */
-  private isBeforeMonth() {
-    return !this._minDate ? true : this._minDate && this.dateUtil.getMonthDistance(this.displayDate, this._minDate) < 0;
-  }
-
-  /**
-   * Check is After month enabled or not
-   * @return boolean
-   */
-  private isAfterMonth() {
-    return !this._maxDate ? true : this._maxDate && this.dateUtil.getMonthDistance(this.displayDate, this._maxDate) > 0;
-  }
-
-  /**
-   * Check the date is enabled or not
-   * @param date Date Object
-   * @return boolean
-   */
-  private _isDisabledDate(date: Date): boolean {
-    if (this._minDate && this._maxDate) {
-      return (this._minDate > date) || (this._maxDate < date);
-    } else if (this._minDate) {
-      return (this._minDate > date);
-    } else if (this._maxDate) {
-      return (this._maxDate < date);
-    } else {
-      return false;
-    }
-
-    //if (this.disableWeekends) {
-    //  let dayNbr = this.getDayNumber(date);
-    //  if (dayNbr === 0 || dayNbr === 6) {
-    //    return true;
-    //  }
-    //}
-    //return false;
-  }
-
-  /**
-   * Generate Month Calendar
-   */
-  private generateCalendar(): void {
-    let year = this.displayDate.getFullYear();
-    let month = this.displayDate.getMonth();
-
-    this.dates.length = 0;
-
-    let firstDayOfMonth = this.dateUtil.getFirstDateOfMonth(this.displayDate);
-    let numberOfDaysInMonth = this.dateUtil.getNumberOfDaysInMonth(this.displayDate);
-    let numberOfDaysInPrevMonth = this.dateUtil.getNumberOfDaysInMonth(this.dateUtil.incrementMonths(this.displayDate, -1));
-
-    let dayNbr = 1;
-    let calMonth = this.prevMonth;
-    for (let i = 1; i < 7; i++) {
-      let week: IWeek[] = [];
-      if (i === 1) {
-        let prevMonth = numberOfDaysInPrevMonth - firstDayOfMonth.getDay() + 1;
-        for (let j = prevMonth; j <= numberOfDaysInPrevMonth; j++) {
-          let iDate: IDate = { year: year, month: month - 1, day: j, hour: 0, minute: 0 };
-          let date: Date = new Date(year, month - 1, j);
-          week.push({
-            date: date,
-            dateObj: iDate,
-            calMonth: calMonth,
-            today: this.dateUtil.isSameDay(this.today, date),
-            disabled: this._isDisabledDate(date)
-          });
-        }
-
-        calMonth = this.currMonth;
-        let daysLeft = 7 - week.length;
-        for (let j = 0; j < daysLeft; j++) {
-          let iDate: IDate = { year: year, month: month, day: dayNbr, hour: 0, minute: 0 };
-          let date: Date = new Date(year, month, dayNbr);
-          week.push({
-            date: date,
-            dateObj: iDate,
-            calMonth: calMonth,
-            today: this.dateUtil.isSameDay(this.today, date),
-            disabled: this._isDisabledDate(date)
-          });
-          dayNbr++;
-        }
-      }
-      else {
-        for (let j = 1; j < 8; j++) {
-          if (dayNbr > numberOfDaysInMonth) {
-            dayNbr = 1;
-            calMonth = this.nextMonth;
-          }
-          let iDate: IDate = { year: year, month: calMonth === this.currMonth ? month : month + 1, day: dayNbr, hour: 0, minute: 0 };
-          let date: Date = new Date(year, iDate.month, dayNbr);
-          week.push({
-            date: date,
-            dateObj: iDate,
-            calMonth: calMonth,
-            today: this.dateUtil.isSameDay(this.today, date),
-            disabled: this._isDisabledDate(date)
-          });
-          dayNbr++;
-        }
-      }
-      this.dates.push(week);
-    }
-  }
-
-  /**
-   * Select Hour
-   * @param event Event Object
-   * @param hour number of hours
-   */
-  private onClickHour(event: Event, hour: number) {
-    event.preventDefault();
-    event.stopPropagation();
-    this.setHour(hour);
-  }
-
-  /**
-   * Select Minute
-   * @param event Event Object
-   * @param minute number of minutes
-   */
-  private onClickMinute(event: Event, minute: number) {
-    event.preventDefault();
-    event.stopPropagation();
-    this.setMinute(minute);
-  }
-
-  /**
-   * Set hours
-   * @param hour number of hours
-   */
-  private setHour(hour: number) {
-    let date = this.displayDate;
-    this.isHoursVisible = false;
-    this.displayDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, date.getMinutes());
-    this._resetClock();
-  }
-
-  /**
-   * Set minutes
-   * @param minute number of minutes
-   */
-  private setMinute(minute: number) {
-    let date = this.displayDate;
-    this.displayDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), minute);
-    this.selectedDate = this.displayDate;
-    this.value = this.selectedDate;
-    this.onBlur();
-  }
-
-  //private onMouseDownClock(event: MouseEvent) {
-  //  document.addEventListener('mousemove', this.mouseMoveListener);
-  //  document.addEventListener('mouseup', this.mouseUpListener);
-
-
-
-  //  //let offset = this.offset(event.currentTarget)
-  //  //this.clock.x = offset.left + this.clock.dialRadius;
-  //  //this.clock.y = offset.top + this.clock.dialRadius;
-  //  //this.clock.dx = event.pageX - this.clock.x;
-  //  //this.clock.dy = event.pageY - this.clock.y;
-  //  //let z = Math.sqrt(this.clock.dx * this.clock.dx + this.clock.dy * this.clock.dy);
-  //  //if (z < this.clock.outerRadius - this.clock.tickRadius || z > this.clock.outerRadius + this.clock.tickRadius) { return; }
-  //  //event.preventDefault();
-  //  //this.setClockHand(this.clock.dx, this.clock.dy);
-
-  //  ////this.onMouseMoveClock = this.onMouseMoveClock.bind(this);
-  //  ////this.onMouseUpClock = this.onMouseUpClock.bind(this);
-  //  //document.addEventListener('mousemove', this.onMouseMoveClock);
-  //  //document.addEventListener('mouseup', this.onMouseUpClock);
-  //}
-
-  //onMouseMoveClock(event: MouseEvent) {
-  //  event.preventDefault();
-  //  event.stopPropagation();
-  //  let x = event.pageX - this.clock.x,
-  //    y = event.pageY - this.clock.y;
-  //  this.clock.moved = true;
-  //  this._setClockHand(x, y);//, false, true
-  //  //if (!moved && x === dx && y === dy) {
-  //  //  // Clicking in chrome on windows will trigger a mousemove event
-  //  //  return;
-  //  //}
-  //}
-
-  //onMouseUpClock(event: MouseEvent) {
-  //  event.preventDefault();
-  //  document.removeEventListener('mousemove', this.mouseMoveListener);
-  //  document.removeEventListener('mouseup', this.mouseUpListener);
-  //  //let space = false;
-
-  //  let x = event.pageX - this.clock.x,
-  //    y = event.pageY - this.clock.y;
-  //  if ((space || this.clockEvent.moved) && x === this.clockEvent.dx && y === this.clockEvent.dy) {
-  //    this.setClockHand(x, y);
-  //  }
-  //  //if (this.isHoursVisible) {
-  //  //  //self.toggleView('minutes', duration / 2);
-  //  //} else {
-  //  //  //if (options.autoclose) {
-  //  //  //  self.minutesView.addClass('clockpicker-dial-out');
-  //  //  //  setTimeout(function () {
-  //  //  //    self.done();
-  //  //  //  }, duration / 2);
-  //  //  //}
-  //  //}
-
-  //  if ((space || moved) && x === dx && y === dy) {
-  //    self.setHand(x, y);
-  //  }
-  //  if (self.currentView === 'hours') {
-  //    self.toggleView('minutes', duration / 2);
-  //  } else {
-  //    if (options.autoclose) {
-  //      self.minutesView.addClass('clockpicker-dial-out');
-  //      setTimeout(function () {
-  //        self.done();
-  //      }, duration / 2);
-  //    }
-  //  }
-  //  plate.prepend(canvas);
-
-  //  // Reset cursor style of body
-  //  clearTimeout(movingTimer);
-  //  $body.removeClass('clockpicker-moving');
-
-  //}
-
-  /**
-   * reser clock hands
-   */
-  private _resetClock() {
-    let hour = this.displayDate.getHours();
-    let minute = this.displayDate.getMinutes();
-
-    let value = this.isHoursVisible ? hour : minute,
-      unit = Math.PI / (this.isHoursVisible ? 6 : 30),
-      radian = value * unit,
-      radius = this.isHoursVisible && value > 0 && value < 13 ? this.clock.innerRadius : this.clock.outerRadius,
-      x = Math.sin(radian) * radius,
-      y = - Math.cos(radian) * radius;
-    this._setClockHand(x, y);
-  }
-
-  /**
-   * set clock hand
-   * @param x number of x position
-   * @param y number of y position
-   */
-  private _setClockHand(x: number, y: number) {
-    let radian = Math.atan2(x, y),
-      unit = Math.PI / (this.isHoursVisible ? 6 : 30),
-      z = Math.sqrt(x * x + y * y),
-      inner = this.isHoursVisible && z < (this.clock.outerRadius + this.clock.innerRadius) / 2,
-      radius = inner ? this.clock.innerRadius : this.clock.outerRadius,
-      value = 0;
-
-    if (radian < 0) { radian = Math.PI * 2 + radian; }
-    value = Math.round(radian / unit);
-    radian = value * unit;
-    if (this.isHoursVisible) {
-      if (value === 12) { value = 0; }
-      value = inner ? (value === 0 ? 12 : value) : value === 0 ? 0 : value + 12;
-    } else {
-      if (value === 60) { value = 0; }
-    }
-
-    this.clock.hand = {
-      x: Math.sin(radian) * radius,
-      y: Math.cos(radian) * radius
-    }
-  }
-
-  /**
-   * render Click
-   */
-  private generateClock() {
-    this.hours.length = 0;
-
-    for (let i = 0; i < 24; i++) {
-      let radian = i / 6 * Math.PI;
-      let inner = i > 0 && i < 13,
-        radius = inner ? this.clock.innerRadius : this.clock.outerRadius;
-      this.hours.push({
-        hour: i === 0 ? '00' : i,
-        top: this.clock.dialRadius - Math.cos(radian) * radius - this.clock.tickRadius,
-        left: this.clock.dialRadius + Math.sin(radian) * radius - this.clock.tickRadius
-      });
-    }
-
-    for (let i = 0; i < 60; i += 5) {
-      let radian = i / 30 * Math.PI;
-      this.minutes.push({
-        minute: i === 0 ? '00' : i,
-        top: this.clock.dialRadius - Math.cos(radian) * this.clock.outerRadius - this.clock.tickRadius,
-        left: this.clock.dialRadius + Math.sin(radian) * this.clock.outerRadius - this.clock.tickRadius
-      });
-    }
-  }
-
-  /**
-   * format date
-   * @param date Date Object
-   * @return string with formatted date
-   */
-  private _formatDate(date: Date): string {
-    return this.format
-      .replace('YYYY', date.getFullYear() + '')
-      .replace('MM', this._prependZero((date.getMonth() + 1) + ''))
-      .replace('DD', this._prependZero(date.getDate() + ''))
-      .replace('HH', this._prependZero(date.getHours() + ''))
-      .replace('mm', this._prependZero(date.getMinutes() + ''))
-      .replace('ss', this._prependZero(date.getSeconds() + ''));
-  }
-
-  /**
-   * Prepend Zero
-   * @param value String value
-   * @return string with prepend Zero
-   */
-  private _prependZero(value: string): string {
-    return parseInt(value) < 10 ? '0' + value : value;
-  }
-
-  /**
-   * Get Offset
-   * @param element HtmlElement
-   * @return top, left offset from page
-   */
-  private _offset(element: any) {
-    let top = 0, left = 0;
-    do {
-      top += element.offsetTop || 0;
-      left += element.offsetLeft || 0;
-      element = element.offsetParent;
-    } while (element);
-
-    return {
-      top: top,
-      left: left
-    };
-  }
-
   writeValue(value: any): void {
-    if (value && value !== this._value) {
-      if (this.dateUtil.isValidDate(value)) {
-        this._value = value;
-      } else {
-        if (this.type === 'time') {
-          this._value = new Date('1-1-1 ' + value);
-        }
-        else {
-          this._value = new Date(value);
-        }
+    if (!this.options) { return; }
+
+    this.options.forEach((option: MdCalendar) => {
+      if (option.value === value) {
+        option.select();
       }
-      this.displayInputDate = this._formatDate(this._value);
-      let date = '';
-      if (this.type !== 'time') {
-        date += this._value.getFullYear() + '-' + (this._value.getMonth() + 1) + '-' + this._value.getDate();
-      }
-      if (this.type === 'datetime') {
-        date += ' ';
-      }
-      if (this.type !== 'date') {
-        date += this._value.getHours() + ':' + this._value.getMinutes();
-      }
+    });
+  }
+
+  /**
+   * Saves a callback function to be invoked when the select's value
+   * changes from user input. Part of the ControlValueAccessor interface
+   * required to integrate with Angular's core forms API.
+   */
+  registerOnChange(fn: (value: any) => void): void {
+    this._onChange = fn;
+  }
+
+  /**
+   * Saves a callback function to be invoked when the select is blurred
+   * by the user. Part of the ControlValueAccessor interface required
+   * to integrate with Angular's core forms API.
+   */
+  registerOnTouched(fn: Function): void {
+    this._onTouched = fn;
+  }
+
+  /**
+   * Disables the select. Part of the ControlValueAccessor interface required
+   * to integrate with Angular's core forms API.
+   */
+  setDisabledState(isDisabled: boolean): void {
+    this.disabled = isDisabled;
+  }
+
+  /** Whether or not the overlay panel is open. */
+  get panelOpen(): boolean {
+    return this._panelOpen;
+  }
+
+  /** The currently selected option. */
+  get selected(): MdCalendar {
+    return this._selected;
+  }
+
+  _isRtl(): boolean {
+    return this._dir ? this._dir.value === 'rtl' : false;
+  }
+
+  /** The width of the trigger element. This is necessary to match
+   * the overlay width to the trigger width.
+   */
+  _getWidth(): number {
+    return this.trigger.nativeElement.getBoundingClientRect().width;
+  }
+
+  /** The animation state of the placeholder. */
+  _getPlaceholderState(): string {
+    if (this.panelOpen || this.selected) {
+      return this._isRtl() ? 'floating-rtl' : 'floating-ltr';
+    } else {
+      return 'normal';
     }
   }
 
-  registerOnChange(fn: any) { this._onChangeCallback = fn; }
-
-  registerOnTouched(fn: any) { this._onTouchedCallback = fn; }
-
-}
-
-export const MD_DATEPICKER_DIRECTIVES = [MdDatepicker];
-
-@NgModule({
-  imports: [CommonModule, FormsModule],
-  exports: MD_DATEPICKER_DIRECTIVES,
-  declarations: MD_DATEPICKER_DIRECTIVES,
-})
-export class MdDatepickerModule {
-  static forRoot(): ModuleWithProviders {
-    return {
-      ngModule: MdDatepickerModule,
-      providers: [Md2DateUtil]
-    };
+  /** The animation state of the overlay panel. */
+  _getPanelState(): string {
+    return this._isRtl() ? 'showing-rtl' : 'showing-ltr';
   }
+
+  /** Ensures the panel opens if activated by the keyboard. */
+  _handleKeydown(event: KeyboardEvent): void {
+    if (event.keyCode === ENTER || event.keyCode === SPACE) {
+      this.open();
+    }
+  }
+
+  /**
+   * When the panel is finished animating, emits an event and focuses
+   * an option if the panel is open.
+   */
+  _onPanelDone(): void {
+    if (this.panelOpen) {
+      this._focusCorrectOption();
+      this.onOpen.emit();
+    } else {
+      this.onClose.emit();
+    }
+  }
+
+  /**
+   * Calls the touched callback only if the panel is closed. Otherwise, the trigger will
+   * "blur" to the panel when it opens, causing a false positive.
+   */
+  _onBlur() {
+    if (!this.panelOpen) {
+      this._onTouched();
+    }
+  }
+
+  /** Returns the correct tabindex for the select depending on disabled state. */
+  _getTabIndex() {
+    return this.disabled ? '-1' : '0';
+  }
+
+  /** Sets up a key manager to listen to keyboard events on the overlay panel. */
+  private _initKeyManager() {
+    this._keyManager = new ListKeyManager(this.options);
+    this._tabSubscription = this._keyManager.tabOut.subscribe(() => {
+      this.close();
+    });
+  }
+
+  /** Listens to selection events on each option. */
+  private _listenToOptions(): void {
+    this.options.forEach((option: MdCalendar) => {
+      const sub = option.onSelect.subscribe((isUserInput: boolean) => {
+        if (isUserInput) {
+          this._onChange(option.value);
+        }
+        this._onSelect(option);
+      });
+      this._subscriptions.push(sub);
+    });
+  }
+
+  /** Unsubscribes from all option subscriptions. */
+  private _dropSubscriptions(): void {
+    this._subscriptions.forEach((sub: Subscription) => sub.unsubscribe());
+    this._subscriptions = [];
+  }
+
+  /** When a new option is selected, deselects the others and closes the panel. */
+  private _onSelect(option: MdCalendar): void {
+    this._selected = option;
+    this._updateOptions();
+    this.close();
+  }
+
+  /** Deselect each option that doesn't match the current selection. */
+  private _updateOptions(): void {
+    this.options.forEach((option: MdCalendar) => {
+      if (option !== this.selected) {
+        option.deselect();
+      }
+    });
+  }
+
+  /** Focuses the selected item. If no option is selected, it will focus
+   * the first item instead.
+   */
+  private _focusCorrectOption(): void {
+    if (this.selected) {
+      this._keyManager.setFocus(this._getOptionIndex(this.selected));
+    } else {
+      this._keyManager.focusFirstItem();
+    }
+  }
+
+  /** Focuses the host element when the panel closes. */
+  private _focusHost(): void {
+    this._renderer.invokeElementMethod(this._element.nativeElement, 'focus');
+  }
+
+  /** Gets the index of the provided option in the option list. */
+  private _getOptionIndex(option: MdCalendar): number {
+    return this.options.reduce((result: number, current: MdCalendar, index: number) => {
+      return result === undefined ? (option === current ? index : undefined) : result;
+    }, undefined);
+  }
+
 }
