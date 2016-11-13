@@ -4,7 +4,7 @@ import {HttpModule} from '@angular/http';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {DemoApp} from './demo-app/demo-app';
 import {RouterModule} from '@angular/router';
-import {Md2DatepickerModule} from 'md2';
+import {Md2DatepickerModule} from 'md2datepicker';
 import {DEMO_APP_ROUTES} from './demo-app/routes';
 import {DatepickerDemo} from './datepicker/datepicker-demo';
 

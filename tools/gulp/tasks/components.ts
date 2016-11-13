@@ -89,7 +89,7 @@ task(':build:components:rollup', [':build:components:inline'], () => {
     external: Object.keys(globals)
   }).then((bundle: { generate: any }) => {
     const result = bundle.generate({
-      moduleName: 'ng.md2',
+      moduleName: 'ng.md2datepicker',
       format: 'umd',
       globals,
       sourceMap: true,

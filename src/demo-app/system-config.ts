@@ -21,7 +21,7 @@ System.config({
   packages: {
     // Thirdparty barrels.
     'rxjs': { main: 'index' },
-    'md2': {
+    'md2datepicker': {
       format: 'cjs',
       main: 'md2datepicker.umd.js'
     },
