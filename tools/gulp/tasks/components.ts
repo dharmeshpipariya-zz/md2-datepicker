@@ -82,29 +82,29 @@ task(':build:components:rollup', [':build:components:inline'], () => {
     'rxjs/Observable': 'Rx'
   };
 
-  // Rollup the md2-datepicker UMD bundle from all ES5 + imports JavaScript files built.
+  // Rollup the @angular/material UMD bundle from all ES5 + imports JavaScript files built.
   return rollup({
     entry: path.join(DIST_COMPONENTS_ROOT, 'index.js'),
     context: 'this',
     external: Object.keys(globals)
   }).then((bundle: { generate: any }) => {
     const result = bundle.generate({
-      moduleName: 'ng.md2datepicker',
+      moduleName: 'ng.material',
       format: 'umd',
       globals,
       sourceMap: true,
-      dest: path.join(DIST_COMPONENTS_ROOT, 'md2datepicker.umd.js')
+      dest: path.join(DIST_COMPONENTS_ROOT, 'material.umd.js')
     });
 
     // Add source map URL to the code.
-    result.code += '\n\n//# sourceMappingURL=./md2datepicker.umd.js.map\n';
+    result.code += '\n\n//# sourceMappingURL=./material.umd.js.map\n';
     // Format mapping to show properly in the browser. Rollup by default will put the path
     // as relative to the file, and since that path is in src/lib and the file is in
-    // dist/md2-datepicker, we need to kill a few `../`.
+    // dist/@angular/material, we need to kill a few `../`.
     result.map.sources = result.map.sources.map((s: string) => s.replace(/^(\.\.\/)+/, ''));
 
-    writeFileSync(path.join(DIST_COMPONENTS_ROOT, 'md2datepicker.umd.js'), result.code, 'utf8');
-    writeFileSync(path.join(DIST_COMPONENTS_ROOT, 'md2datepicker.umd.js.map'), result.map, 'utf8');
+    writeFileSync(path.join(DIST_COMPONENTS_ROOT, 'material.umd.js'), result.code, 'utf8');
+    writeFileSync(path.join(DIST_COMPONENTS_ROOT, 'material.umd.js.map'), result.map, 'utf8');
   });
 });
 
